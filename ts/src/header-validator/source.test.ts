@@ -1,7 +1,7 @@
 import { SourceType } from '../source-type'
 import * as vsv from '../vendor-specific-values'
 import { Maybe } from './maybe'
-import { Source, SummaryOperator, TriggerDataMatching } from './source'
+import { Source, TriggerDataMatching } from './source'
 import * as testutil from './util.test'
 import * as jsontest from './validate-json.test'
 import * as source from './validate-source'
@@ -28,7 +28,7 @@ const testCases: TestCase[] = [
       "aggregation_keys": {"a": "0xf"},
       "debug_key": "1",
       "debug_reporting": true,
-      "destination": "https://a.test",
+      "destination": ["https://a.test", "https://1.2.3.4"],
       "destination_limit_priority": "1",
       "event_report_window": "3601",
       "expiry": "86400",
@@ -61,7 +61,7 @@ const testCases: TestCase[] = [
       aggregationKeys: new Map([['a', 15n]]),
       debugKey: 1n,
       debugReporting: true,
-      destination: new Set(['https://a.test']),
+      destination: new Set(['https://a.test', 'https://1.2.3.4']),
       destinationLimitPriority: 1n,
       eventLevelEpsilon: 14,
       expiry: 86400,
@@ -69,17 +69,11 @@ const testCases: TestCase[] = [
       priority: 2n,
       sourceEventId: 3n,
       maxEventLevelReports: 2,
-      triggerSpecs: [
-        {
-          eventReportWindows: {
-            startTime: 0,
-            endTimes: [3601],
-          },
-          summaryBuckets: [1, 2],
-          summaryOperator: SummaryOperator.count,
-          triggerData: new Set([0, 1, 2, 3, 4, 5, 6, 7]),
-        },
-      ],
+      eventReportWindows: {
+        startTime: 0,
+        endTimes: [3601],
+      },
+      triggerData: new Set([0, 1, 2, 3, 4, 5, 6, 7]),
       triggerDataMatching: TriggerDataMatching.modulus,
       aggregatableDebugReporting: {
         budget: 1234,
@@ -122,7 +116,7 @@ const testCases: TestCase[] = [
   },
   {
     name: 'destination-url-components',
-    input: `{"destination": ["https://a.test/b?c=d#e", "https://x.Y.test", "https://sub.A.test/z"]}`,
+    input: `{"destination": ["https://a.test/b?c=d#e", "https://x.Y.test", "https://sub.A.test/z", "https://1.2.3.4/5"]}`,
     expectedWarnings: [
       {
         path: ['destination', 0],
@@ -139,6 +133,10 @@ const testCases: TestCase[] = [
       {
         path: ['destination', 2],
         msg: 'duplicate value https://a.test',
+      },
+      {
+        msg: 'URL components other than site (https://1.2.3.4) will be ignored',
+        path: ['destination', 3],
       },
     ],
   },
@@ -2109,97 +2107,6 @@ const testCases: TestCase[] = [
     ],
   },
 
-  // Flex
-  // TODO: compare returned trigger specs against expected values
-
-  {
-    name: 'trigger-specs-wrong-type',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": {}
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs'],
-        msg: 'must be a list',
-      },
-    ],
-  },
-  {
-    name: 'trigger-specs-too-long',
-    input: JSON.stringify({
-      destination: 'https://a.test',
-      trigger_specs: Array(33)
-        .fill(null)
-        .map((_, i) => ({ trigger_data: [i] })),
-    }),
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs'],
-        msg: 'length must be in the range [0, 32]',
-      },
-    ],
-  },
-  {
-    name: 'trigger-specs-value-wrong-type',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [false]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0],
-        msg: 'must be an object',
-      },
-    ],
-  },
-  {
-    name: 'top-level-trigger-data-and-trigger-specs',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_data": [],
-      "trigger_specs": []
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: [],
-        msg: 'mutually exclusive fields: trigger_data, trigger_specs',
-      },
-    ],
-  },
-  {
-    name: 'top-level-trigger-data-and-trigger-specs-ignored',
-    input: `{
-      "destination": "https://a.test",
-      "max_event_level_reports": 0,
-      "trigger_data": [],
-      "trigger_specs": []
-    }`,
-    expectedWarnings: [
-      {
-        path: ['trigger_specs'],
-        msg: 'unknown field',
-      },
-    ],
-  },
-  {
-    name: 'trigger-data-missing',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{}]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'trigger_data'],
-        msg: 'required',
-      },
-    ],
-  },
   {
     name: 'trigger-data-wrong-type',
     input: `{
@@ -2292,270 +2199,6 @@ const testCases: TestCase[] = [
     ],
   },
   {
-    name: 'trigger-data-duplicated-across',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [
-        { "trigger_data": [1, 2] },
-        { "trigger_data": [3, 2] }
-      ]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs'],
-        msg: 'duplicate trigger_data: 2',
-      },
-    ],
-  },
-  {
-    name: 'trigger-spec-trigger-data-empty',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{"trigger_data": []}]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'trigger_data'],
-        msg: 'length must be in the range [1, 32]',
-      },
-    ],
-  },
-  {
-    name: 'trigger-data-too-many-across',
-    input: JSON.stringify({
-      destination: 'https://a.test',
-      trigger_specs: [
-        { trigger_data: [0] },
-        {
-          trigger_data: Array(32)
-            .fill(0)
-            .map((_, i) => i + 1),
-        },
-      ],
-    }),
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs'],
-        msg: 'exceeds maximum number of distinct trigger_data (33 > 32)',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-wrong-type',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": 1
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets'],
-        msg: 'must be a list',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-empty',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": []
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets'],
-        msg: 'length must be in the range [1, 3 (max_event_level_reports)]',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-too-long',
-    input: `{
-      "destination": "https://a.test",
-      "max_event_level_reports": 4,
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": [1, 2, 3, 4, 5]
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets'],
-        msg: 'length must be in the range [1, 4 (max_event_level_reports)]',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-cannot-validate-length',
-    input: `{
-      "destination": "https://a.test",
-      "max_event_level_reports": null,
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": [1, 2, 3, 4, 5]
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['max_event_level_reports'],
-        msg: 'must be a number',
-      },
-      {
-        path: ['trigger_specs', 0, 'summary_buckets'],
-        msg: 'cannot be fully validated without a valid max_event_level_reports',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-value-wrong-type',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": ["1"]
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets', 0],
-        msg: 'must be a number',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-value-not-integer',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": [1.5]
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets', 0],
-        msg: 'must be an integer',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-value-non-positive',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": [0]
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets', 0],
-        msg: 'must be > implicit minimum (0) and <= uint32 max (4294967295)',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-non-increasing',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": [5, 6, 4]
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets', 2],
-        msg: 'must be > previous value (6) and <= uint32 max (4294967295)',
-      },
-    ],
-  },
-  {
-    name: 'summary-buckets-value-exceeds-max',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_buckets": [4294967296]
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_buckets', 0],
-        msg: 'must be > implicit minimum (0) and <= uint32 max (4294967295)',
-      },
-    ],
-  },
-  {
-    name: 'summary-operator-wrong-type',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_operator": 4
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_operator'],
-        msg: 'must be a string',
-      },
-    ],
-  },
-  {
-    name: 'summary-operator-wrong-value',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "summary_operator": "VALUE_SUM"
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'summary_operator'],
-        msg: 'must be one of the following (case-sensitive): count, value_sum',
-      },
-    ],
-  },
-  {
-    // The parser is shared with top-level event_report_windows, so just test
-    // basic support here.
-    name: 'spec-event-windows-basic',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_specs": [{
-        "trigger_data": [3],
-        "event_report_windows": {}
-      }]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_specs', 0, 'event_report_windows', 'end_times'],
-        msg: 'required',
-      },
-    ],
-  },
-  {
     name: 'trigger-data-matching-wrong-type',
     input: `{
       "destination": "https://a.test",
@@ -2596,24 +2239,6 @@ const testCases: TestCase[] = [
     ],
   },
   {
-    name: 'trigger-data-matching-modulus-trigger-data-not-contiguous-across',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_data_matching": "modulus",
-      "trigger_specs": [
-        {"trigger_data": [0, 1]},
-        {"trigger_data": [3]}
-      ]
-    }`,
-    parseFullFlex: true,
-    expectedErrors: [
-      {
-        path: ['trigger_data_matching'],
-        msg: 'trigger_data must form a contiguous sequence of integers starting at 0 for modulus',
-      },
-    ],
-  },
-  {
     name: 'trigger-data-matching-modulus-trigger-data-not-contiguous-within',
     input: `{
       "destination": "https://a.test",
@@ -2639,26 +2264,6 @@ const testCases: TestCase[] = [
         msg: 'trigger_data must form a contiguous sequence of integers starting at 0 for modulus',
       },
     ],
-  },
-  {
-    name: 'trigger-data-matching-modulus-valid-across',
-    input: `{
-      "destination": "https://a.test",
-      "trigger_data_matching": "modulus",
-      "trigger_specs": [
-        {"trigger_data": [1, 0]},
-        {"trigger_data": [3]},
-        {"trigger_data": [2]},
-        {"trigger_data": [4, 5, 6, 7, 8, 9, 10]}
-      ]
-    }`,
-    vsv: {
-      maxEventLevelChannelCapacityPerSource: {
-        [SourceType.event]: Infinity,
-        [SourceType.navigation]: Infinity,
-      },
-    },
-    parseFullFlex: true,
   },
   {
     name: 'trigger-data-matching-modulus-valid-within',
@@ -3236,7 +2841,6 @@ testCases.forEach((tc) =>
     source.validator({
       vsv: { ...vsv.Chromium, ...tc.vsv },
       sourceType: tc.sourceType ?? SourceType.navigation,
-      fullFlex: tc.parseFullFlex,
       noteInfoGain: tc.noteInfoGain,
     })
   )

@@ -12,7 +12,7 @@
   - [Attribution trigger registration](#attribution-trigger-registration)
   - [Aggregatable reports](#aggregatable-reports)
     - [Encrypted payload](#encrypted-payload)
-  - [Optional: transitional debugging reports](#optional-transitional-debugging-reports)
+  - [Optional: Cookie-based debugging reports](#optional-cookie-based-debugging-reports)
     - [Attribution-success debugging reports](#attribution-success-debugging-reports)
     - [Verbose debugging reports](#verbose-debugging-reports)
   - [Contribution bounding and budgeting](#contribution-bounding-and-budgeting)
@@ -38,9 +38,10 @@
 
 ## Authors
 
-* csharrison@chromium.org
-* johnidel@chromium.org
-* marianar@google.com
+* Charlie Harrison (csharrison@chromium.org)
+* John Delaney (johnidel@chromium.org)
+* Mariana Raykova (marianar@google.com)
+* Nan Lin (linnan@chromium.org)
 
 ## Introduction
 
@@ -377,7 +378,7 @@ future versions of the API), the endpoint URL should also change.
 **Note:** The browser may need some mechanism to ensure that the same set of
 keys are delivered to different users.
 
-### Optional: transitional debugging reports
+### Optional: Cookie-based debugging reports
 
 #### Attribution-success debugging reports
 
@@ -503,6 +504,9 @@ with a trigger context ID.
 As the trigger context ID in the aggregatable report explicitly reveals the
 association between the report and the trigger, these reports can be sent
 immediately without delay.
+
+When a trigger context ID is provided, the aggregatable report will not count
+towards the limit of aggregatable reports per source, nor be limited by it.
 
 Note: This is an [alternative](https://github.com/WICG/attribution-reporting-api/blob/main/report_verification.md#could-we-just-tag-reports-with-a-trigger_id-instead-of-using-anonymous-tokens)
 considered for [report verification](https://github.com/WICG/attribution-reporting-api/blob/main/report_verification.md),

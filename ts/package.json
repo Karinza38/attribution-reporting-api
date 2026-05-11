@@ -8,7 +8,7 @@
     "pack": "webpack --mode production",
     "flexible-event": "node dist/flexible-event/main.js",
     "header": "node dist/header-validator/main.js",
-    "test": "node --test dist/",
+    "test": "node --test dist/**/*.test.js",
     "pretty": "prettier . --write",
     "pretty:check": "prettier . --check",
     "lint": "eslint src"
@@ -16,26 +16,24 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "memoizee": "^0.4.15",
-    "psl": "^1.9.0",
-    "structured-headers": "^1.0.1",
+    "ip-regex": "^5.0.0",
+    "memoizee": "^0.4.17",
+    "psl": "^1.15.0",
+    "structured-headers": "^2.0.1",
     "ts-command-line-args": "^2.5.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.4.0",
-    "@types/command-line-args": "^5.2.3",
-    "@types/eslint__js": "^8.42.3",
-    "@types/memoizee": "^0.4.11",
-    "@types/node": "^20.11.16",
+    "@eslint/js": "^9.28.0",
+    "@types/memoizee": "^0.4.12",
+    "@types/node": "^22.15.29",
     "@types/psl": "^1.1.3",
-    "@types/uuid": "^9.0.7",
     "assert": "^2.1.0",
-    "eslint": "^8.57.0",
-    "prettier": "^3.2.4",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^7.13.0",
-    "webpack": "^5.94.0",
-    "webpack-cli": "^5.1.4"
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.33.1",
+    "webpack": "^5.105.0",
+    "webpack-cli": "^6.0.1"
   }
 }
